@@ -1,0 +1,11 @@
+#! /usr/bin/env ruby
+
+require 'log2carbon'
+
+config = Log2Carbon::Configuration.load(ARGV[1] || "/etc/log2carbon/log2carbon.conf")
+
+Daemons.run_proc(config[:process_name], :multiple => true,
+                                        :dir_mode => :normal,
+                                        :dir      => '/tmp') do
+  Log2Carbon::Analyzer.work
+end
