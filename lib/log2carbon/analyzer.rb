@@ -1,57 +1,134 @@
-
 module Log2Carbon
-  
-  module Configuration
-    def check_connection_to_carbon!(server)
-      begin
-        Socket.getaddrinfo(server[:address],nil)
-        if server[:port]=="udp"
-          carbon_socket = UDPSocket.new
-          carbon_socket.close
-        elsif server[:port]=="tcp"
-          carbon_socket = TCPSocket.new(server[:address], server[:port])
-          carbon_socket.close
-        else
-          raise "Server port \"#{server[:port]} is not a valid protocol, must be TCP or UDP"
+  class Analyzer
+    
+    @@logger = nil
+    @@config = nil
+    @@connection = nil
+    
+    def initialize(config)
+      @@config = config
+      
+      trap('HUP') {
+        reload()
+      }
+      
+      trap('EXIT') {
+        stop()
+      }
+      
+      trap('QUIT') {
+        stop()
+      }
+      
+      logger
+      connection
+      work
+    end
+    
+    def self.work(config)
+      new(config).work
+    end
+    
+    def work()
+      
+      @collector = Log2Carbon::Collector.new(config[:resolution],config[:polling_time],config[:flush_timeout])
+      parser_classes = Hash.new
+      parser_by_log = Hash.new
+      logs = Array.new
+      
+      config[:logs].each do |item|
+        parser_by_log[item[:file]] = item[:parser]
+        logs << item[:file]
+        ## to avoid doing the Module on each log entry, memoizing
+        parser_classes[item[:parser]] = Module.const_get(item[:parser])  
+      end
+      
+      logs.each do |log_file|
+        logger.info("Starting to read #{log_file}")
+      end
+      
+      Log2Carbon::Tailer.tail(logs) do |line, log_file|
+        ## call the appropiate parser
+        klass = parser_classes[parser_by_log[log_file]]
+        begin
+          klass.process(collector, log_file, line)
+        rescue Exception => e
+          logger.error("Error parsing the log \"#{log_file}\" on line \"#{line}\" with parser \"#{parser_by_log[log_file]}\". Trace: #{e.inspect}")
         end
+        ##logger.info("#{parser_by_log[log_file]} : #{line}")
+      end
+      
+    end
+    
+    def stop()
+      begin
+        logger.info("Attempting stop")
+        Log2Carbon::Tailer.stop()
+        collector.stop()
+        logger.info("Successful stop")
       rescue Exception => e
-        raise "Could not connect to the carbon server: #{server}"
+        logger.error("Failed to stop #{e.inspect}")
       end
     end
-  
-    def load_conf(conf_file)
+    
+    def reload() 
       begin
-        conf = {}
-        first_line = true
-        File.open(conf_file).each do |line|
-          if line.match(/^#/).nil? || line.empty?
-            ## not a comment
-            line = line.rstrip.lstrip.gsub("\n","")
-
-            ## the first line that is not a comment is the address to carbon,
-            ## the rest of the lines will be carbon
-            first_line = false
-            address, port, protocol = line.split(" ")
-
-              raise "The conf line \"#{line}\" is not a valid carbon server" if address.nil? || port.nil? || protocol.nil? 
-
-              conf[:carbon] = [{:address => address, :port => port.downcase!, :protocol => protocol}]
-              check_connection_to_carbon!(@conf[:carbon].first)
-            else
-
-            end  
-          end
-        end
-        return conf
+        logger.info("Attempting reload")
+        new_config = Log2Carbon::Configuration.load(config[:conf_file])
+        @@config = new_config
+        
+        ## must stop the tailer of the current logs
+        Log2Carbon::Tailer.stop()
+        collector.stop()
+          
+        work()
+        logger.info("Successful reload")
+      
       rescue Exception => e
-        puts "CRITICAL: Error loading the configuration file #{conf_file}"
-        puts e.inspect
-        raise e
-      end  
+        logger.error("Failed to reload #{e.inspect}")
+      end
+      
+    end
+    
+    def parser_class(name)
+      @parsers_classes[name]
+    end
+    
+    def logger
+      Analyzer.logger
+    end
+    
+    def self.logger
+      if @@logger.nil?
+        @@logger = Logger.new(config[:log_file])
+        @@logger.formatter = proc { |severity, datetime, progname, msg|
+          "#{severity} #{datetime.getutc.strftime("[%d/%b/%Y %H:%M:%S %Z]")} #{msg}\n"
+        }
+      end
+      @@logger
+    end
+    
+    
+    def self.config
+      @@config
+    end
+    
+    def config
+      Analyzer.config
+    end
+    
+    def self.connection
+      server = config[:carbon_server]
+      @@connection ||= Log2Carbon::Connection.new(server[:address],server[:port],server[:protocol])
+    end
+    
+    def connection
+      Analyzer.connection
+    end
+    
+    def collector
+      @collector
     end
     
   end
-  
-  
-  
 end

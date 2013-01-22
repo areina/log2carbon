@@ -13,6 +13,10 @@ Gem::Specification.new do |s|
   s.description = ''
  
   s.required_rubygems_version = ">= 1.3.7"
+
+  s.add_dependency 'daemons', '1.1.9'
+  s.add_development_dependency 'ruby-debug19'
+
  
   s.files = Dir.glob('{lib,bin}/**/*')
   s.files << 'README.md'

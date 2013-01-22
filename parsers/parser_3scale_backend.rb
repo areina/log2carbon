@@ -1,6 +1,4 @@
-require 'log2carbon'
-
-class Parser3scaleBackend << Log2Carbon::Parser
+class Parser3scaleBackend < Log2Carbon::Parser
   def self.process(collector, file, line)
 
     ##81.19.63.50 - - [27/Dec/2012 09:50:42] "POST /transactions.xml?provider_key=130fbe1bbf5417ce4f04471a109a7b00 HTTP/1.0"
@@ -13,9 +11,9 @@ class Parser3scaleBackend << Log2Carbon::Parser
   
     metric = "#{verb}/#{path}".gsub("/","_")
   
-    @stats.incr("#{date} #{time}","#{metric}.hits",1)
-    @stats.incr("#{date} #{time}","#{metric}.responses.#{response_code}",1)
-    @stats.add("#{date} #{time}","#{metric}.time",request_time.to_f)
-    
+    collector.incr("#{date} #{time}","#{metric}.hits",1)
+    collector.incr("#{date} #{time}","#{metric}.responses.#{response_code}",1)
+    collector.add("#{date} #{time}","#{metric}.time",request_time.to_f)
+      
   end
 end

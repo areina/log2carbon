@@ -1,21 +1,40 @@
 module Log2Carbon
   module Tailer
-    def self.tail(filename, &block)
+    def self.tail(filenames, &block)
       @restart = false
       @finish = false
+
+      ## convert to array if they only pass a string
+      filenames = [filenames]  if filenames.class==String
+        
       while !@finish
-        f = File.open(filename,"r")
-        while !@restart
-          begin
-            line = f.readline
-            block.call line unless line.nil?
-          rescue EOFError
-            f.seek(0, File::SEEK_CUR)
-            sleep 1.0 
-          end
+        files = Array.new
+        
+        filenames.each do |filename|
+          files << File.open(filename,"r")
         end
+       
+        while !@restart
+          num_eofs = 0
+          files.each do |file|
+            begin
+              line = file.readline
+              block.call line, file.path unless line.nil?
+            rescue EOFError
+              file.seek(0, File::SEEK_CUR)
+              num_eofs += 1
+            end
+          end
+          
+          ## this strategy is not very smart if doing a seek is 
+          ## very expensive
+          sleep 1.0 if num_eofs >= files.size
+        end
+        
         @restart = false
-        f.close
+        files.each do |file|
+          file.close
+        end
       end
     end  
     
@@ -23,24 +42,8 @@ module Log2Carbon
       @restart = true
     end
     
-    def self.finish()
+    def self.stop()
       @finish = true
     end
   end
 end
-    
-#def doing_hup
-#  puts "doing HUP"
-#end    
-
-#trap('HUP') {
-#  puts "doing hup: #{@restart} -> true"
-#  @restart = true
-#}
-
-#trap('HUP') { doing_hup() }
-
-#Tailer.tail(ARGV[0]) do |line|
-#  puts "tailed: #{line}"
-#end    
-    

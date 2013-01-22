@@ -2,10 +2,16 @@
 
 require 'log2carbon'
 
-config = Log2Carbon::Configuration.load(ARGV[1] || "/etc/log2carbon/log2carbon.conf")
-
-Daemons.run_proc(config[:process_name], :multiple => true,
-                                        :dir_mode => :normal,
-                                        :dir      => '/tmp') do
-  Log2Carbon::Analyzer.work
+Daemons.run_proc("log2carbon", :multiple => true,
+                               :dir_mode => :system,
+                               :log_output => true) do
+                               
+  ## get the configuration first, most of the config applies to the daemon
+  conf_file = nil
+  app_index = ARGV.find_index("--")
+  config_filename = ARGV[app_index+1] if app_index
+  config = Log2Carbon::Configuration.load(config_filename || "/etc/log2carbon/log2carbon.conf")
+  
+  ## run the log analyzer 
+  Log2Carbon::Analyzer.work(config)
 end
