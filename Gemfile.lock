@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    log2carbon (0.1.0)
+    log2carbon (0.2.0)
       daemons (= 1.1.9)
 
 GEM

@@ -1,7 +1,5 @@
 module Log2Carbon
-  
   module Configuration
-    
     def self.check_connection_to_carbon!(server)
       begin
         Socket.getaddrinfo(server[:address],nil)

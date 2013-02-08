@@ -1,8 +1,11 @@
 module Log2Carbon
   module Tailer
-    def self.tail(filenames, &block)
+    @@lines_processed = 0
+    
+    def self.tail(filenames, eof_block, &block)
       @restart = false
       @finish = false
+      @lines_processed = 0
 
       ## convert to array if they only pass a string
       filenames = [filenames]  if filenames.class==String
@@ -18,9 +21,11 @@ module Log2Carbon
           num_eofs = 0
           files.each do |file|
             begin
+              @@lines_processed += 1
               line = file.readline
               block.call line, file.path unless line.nil?
             rescue EOFError
+              eof_block.call file.path unless eof_block.nil?
               file.seek(0, File::SEEK_CUR)
               num_eofs += 1
             end
@@ -39,11 +44,17 @@ module Log2Carbon
     end  
     
     def self.restart()
+      @@lines_processed = 0
       @restart = true
     end
     
     def self.stop()
+      @@lines_processed = 0
       @finish = true
+    end
+    
+    def self.lines_processed
+      @@lines_processed
     end
   end
 end
