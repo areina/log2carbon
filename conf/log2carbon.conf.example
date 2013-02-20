@@ -1,0 +1,28 @@
+# Carbon server
+# [IP/DOMAIN] [PORT] [PROTOCOL](UPD or TCP)
+# For instance,
+# carbon.mydomain 2003 UDP
+carbon_server xxx.yyy.zzz.www 2003 TCP
+
+# Parser path
+parser_dir /path_to/parser
+
+# Log file, log file of the application
+log_file /var/log/log2carbon.log
+
+# resolution of the temporals buckets that will be written to carbon
+# can be second | minute | hour | day
+resolution minute
+
+# ---
+polling_time 10
+
+# time before flush of the temporal bucket in seconds by which is not more writes have been seen on the temportal bucket
+flush_timeout 30
+
+# List of logs to monitor
+# [LOG PATH] [PARSER CLASS]
+ 
+log_entry /path_to/logs/today/**/nginx.log MyParserNginx
+log_entry /path_to/logs/today/**/rails.log MyParserRails
+log_entry /path_to/logs/today/**/system.log MyParserSystem
