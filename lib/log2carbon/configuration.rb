@@ -41,7 +41,7 @@ module Log2Carbon
   
     def self.load(conf_file)
       begin
-        conf = {}
+        conf = {:polling_time => 30}
         File.open(conf_file).each do |line|
           conf[:conf_file] = conf_file
           line = line.rstrip.lstrip.gsub("\n","")
@@ -55,7 +55,7 @@ module Log2Carbon
               address, port, protocol = items[1..3]
               raise "carbon_server is not defined, must be: carbon_server HOST/IP PORT PROTOCOL" if address.nil? || port.nil? || protocol.nil?
               conf[:carbon_server] = {:address => address, :port => port.to_i, :protocol => protocol.downcase!.to_sym}
-              check_connection_to_carbon!(conf[:carbon_server]) 
+              ##check_connection_to_carbon!(conf[:carbon_server]) 
             elsif lab==:parser_dir
               conf[:parser_dir] = items[1]
               check_file_exists!(conf[:parser_dir])
@@ -79,9 +79,6 @@ module Log2Carbon
             elsif lab==:polling_time
               conf[:polling_time] = items[1].to_i
               raise "polling time must be at least 1 second" if conf[:polling_time]<=0
-            elsif lab==:flush_timeout
-              conf[:flush_timeout] = items[1].to_i
-              raise "flush timeout must be at least 1 second" if conf[:flush_timeout]<=0
             end  
           end
         end

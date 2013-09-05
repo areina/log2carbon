@@ -6,12 +6,11 @@ module Log2Carbon
     RESOLUTION = [:second, :hour, :minute, :day]
     @@memoized_timestamps = Hash.new
     
-    def initialize(resolution, polling_time, flush_timeout)
+    def initialize(resolution, polling_time)
       @metrics = Hash.new
       @last_timestamp_analyzed_by_log = Hash.new
       
       @resolution = resolution.to_sym
-      @flush_timeout = flush_timeout
       @polling_time = polling_time
       @current_clock = Time.now.getutc
       @check_for_flushing = false
@@ -47,10 +46,8 @@ module Log2Carbon
    
     def flush_events(options = {})
       now = Time.now.getutc
-      puts "flush_events :"
-     
+
       @metrics.each do |bucket_time, data|    
-        puts "flush_events : #{time_bucket_elapsed(bucket_time)}"  
         if options[:force]==true || time_bucket_elapsed(bucket_time)
           ## the bucket should be flushed to carbon
           flush_to_carbon(bucket_time)            
@@ -91,25 +88,35 @@ module Log2Carbon
       entries = Array.new
       timestamp = Time.parse(time_bucket).to_i
 
-      [time_bucket].each do |metric, data|
-        if data[:type]==:last
-          entries << "#{metric}.last #{data[:value]}"
-        elsif data[:type]==:count
-          entries << "#{metric}.count #{data[:value]}"
-        elsif data[:type]==:set
-          sv = data[:value].sort
+      @metrics[time_bucket].each do |metric, data|
+        
+        begin 
+          if data[:type]==:last
+            entries << "#{metric}.last #{data[:value]}"
+          elsif data[:type]==:count
+            entries << "#{metric}.count #{data[:value]}"
+          elsif data[:type]==:set
+            Analyzer.logger.info("Sample of the set sizes #{data[:value].size}") if rand(100)==1
+            sv = data[:value].sort
 
-          sum = 0.0
-          sv.each { |b| sum += b }
+            sum = 0.0
+            sv.each { |b| sum += b }
 
-          entries << "#{metric}.avg #{(sum/sv.size.to_f).round(3)}"
-          entries << "#{metric}.min #{sv.first.round(3)}"
-          entries << "#{metric}.max #{sv.last.round(3)}"
-          entries << "#{metric}.50 #{(sv[(sv.size*0.50).to_i]).round(3)}"
-          entries << "#{metric}.90 #{(sv[(sv.size*0.90).to_i]).round(3)}"
-          entries << "#{metric}.95 #{(sv[(sv.size*0.95).to_i]).round(3)}"
-          entries << "#{metric}.99 #{(sv[(sv.size*0.99).to_i]).round(3)}"
+            entries << "#{metric}.avg #{(sum/sv.size.to_f).round(3)}"
+            entries << "#{metric}.min #{sv.first.round(3)}"
+            entries << "#{metric}.max #{sv.last.round(3)}"
+            entries << "#{metric}.50 #{(sv[(sv.size*0.50).to_i]).round(3)}"
+            entries << "#{metric}.60 #{(sv[(sv.size*0.60).to_i]).round(3)}"
+            entries << "#{metric}.70 #{(sv[(sv.size*0.70).to_i]).round(3)}"
+            entries << "#{metric}.80 #{(sv[(sv.size*0.80).to_i]).round(3)}"
+            entries << "#{metric}.90 #{(sv[(sv.size*0.90).to_i]).round(3)}"
+            entries << "#{metric}.95 #{(sv[(sv.size*0.95).to_i]).round(3)}"
+            entries << "#{metric}.99 #{(sv[(sv.size*0.99).to_i]).round(3)}"
+          end
+        rescue Exception=>e
+          Analyzer.logger.error("Error saving metric: #{metric} with data: #{data.inspect}. Exception: #{e}")
         end
+        
       end
 
       data = []
@@ -117,8 +124,12 @@ module Log2Carbon
         data << "#{item} #{timestamp}\r\n"
       end
         
-      Analyzer.logger.info("Flushing to carbon bucket #{time_bucket} with #{entries.size} entries. #{Tailer.lines_processed} total lines processed")      
+      Analyzer.logger.info("Flushing to carbon bucket #{time_bucket} with #{entries.size} entries. Time buckets pending #{@metrics.size}. #{Tailer.lines_processed} total lines processed")      
       Analyzer.connection.send(data) if entries.size>0
+    end
+    
+    def last_timestamp_of_log_files
+      @last_timestamp_analyzed_by_log
     end
     
     def last_timestamp_of_file_due_to_eof(log_file)

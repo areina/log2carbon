@@ -30,40 +30,41 @@ module Log2Carbon
     end
     
     def work()
+      begin
       
-      @collector = Log2Carbon::Collector.new(config[:resolution],config[:polling_time],config[:flush_timeout])
-      parser_classes = Hash.new
-      parser_by_log = Hash.new
-      logs = Array.new
+        @collector = Log2Carbon::Collector.new(config[:resolution],config[:polling_time])
+        parser_classes = Hash.new
+        parser_by_log = Hash.new
+        logs = Array.new
       
-      config[:logs].each do |item|
-        parser_by_log[item[:file]] = item[:parser]
-        logs << item[:file]
-        ## to avoid doing the Module on each log entry, memoizing
-        parser_classes[item[:parser]] = Module.const_get(item[:parser])  
-      end
-      
-      logs.each do |log_file|
-        logger.info("Starting to read #{log_file}")
-      end
-      cont ||= 0
-      
-      eof_hook = Proc.new { |filename| collector.last_timestamp_of_file_due_to_eof(filename); collector.flush_events_if_needed() }
-      
-      Log2Carbon::Tailer.tail(logs, eof_hook) do |line, log_file|
-        ## call the appropiate parser
-        klass = parser_classes[parser_by_log[log_file]]
-        begin
-          cont+=1
-          puts "cont #{cont}" if (cont%1000)==1
-          klass.process(collector, log_file, line)
-          collector.flush_events_if_needed()
-        rescue Exception => e
-          logger.error("Error parsing the log \"#{log_file}\" on line \"#{line}\" with parser \"#{parser_by_log[log_file]}\". Trace: #{e}")
-          raise e
+        config[:logs].each do |item|
+          parser_by_log[item[:file]] = item[:parser]
+          logs << item[:file]
+          ## to avoid doing the Module on each log entry, memoizing
+          parser_classes[item[:parser]] = Module.const_get(item[:parser])  
         end
-      end
       
+        logs.each do |log_file|
+          logger.info("Starting to read #{log_file}")
+        end
+        cont ||= 0
+      
+        eof_hook = Proc.new { |filename| collector.last_timestamp_of_file_due_to_eof(filename); collector.flush_events_if_needed() }
+      
+        Log2Carbon::Tailer.tail(@collector, logs, eof_hook) do |line, log_file|
+          ## call the appropiate parser
+          klass = parser_classes[parser_by_log[log_file]]
+          begin
+            cont+=1
+            klass.process(collector, log_file, line)
+            collector.flush_events_if_needed()
+          rescue Exception => e
+            logger.error("Error parsing the log \"#{log_file}\" on line \"#{line}\" with parser \"#{parser_by_log[log_file]}\". Trace: #{e}")
+          end
+        end
+      rescue Exception => unknown_exception
+        logger.error("Unkown error. Trace: #{unknown_exception}")
+      end
     end
     
     def stop()

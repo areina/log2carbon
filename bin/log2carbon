@@ -12,6 +12,7 @@ Daemons.run_proc("log2carbon", :multiple => true,
   config_filename = ARGV[app_index+1] if app_index
   config = Log2Carbon::Configuration.load(config_filename || "/etc/log2carbon/log2carbon.conf")
   
+  exit if config.nil?
   ## run the log analyzer 
   Log2Carbon::Analyzer.work(config)
 end

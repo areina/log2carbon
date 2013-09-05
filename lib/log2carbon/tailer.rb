@@ -2,7 +2,7 @@ module Log2Carbon
   module Tailer
     @@lines_processed = 0
     
-    def self.tail(filenames, eof_block, &block)
+    def self.tail(collector, filenames, eof_block, &block)
       @restart = false
       @finish = false
       @lines_processed = 0
@@ -11,33 +11,34 @@ module Log2Carbon
       filenames = [filenames]  if filenames.class==String
         
       while !@finish
-        files = Array.new
+        files = Hash.new
         
         filenames.each do |filename|
-          files << File.open(filename,"r")
+          files[filename] = File.open(filename,"r")
+          collector.last_timestamp_of_log_files[filename]=""
         end
        
         while !@restart
-          num_eofs = 0
-          files.each do |file|
-            begin
-              @@lines_processed += 1
-              line = file.readline
-              block.call line, file.path unless line.nil?
-            rescue EOFError
-              eof_block.call file.path unless eof_block.nil?
-              file.seek(0, File::SEEK_CUR)
-              num_eofs += 1
-            end
+          num_eofs = 0          
+          name = collector.last_timestamp_of_log_files.sort {|a1,a2| a1[1]<=>a2[1]}.first.first
+          file = files[collector.last_timestamp_of_log_files.sort {|a1,a2| a1[1]<=>a2[1]}.first.first]
+          begin
+            @@lines_processed += 1
+            line = file.readline
+            block.call line, file.path unless line.nil?
+          rescue EOFError
+            eof_block.call file.path unless eof_block.nil?
+            file.seek(0, File::SEEK_CUR)
+            sleep 1.0
           end
-          
+            
           ## this strategy is not very smart if doing a seek is 
           ## very expensive
-          sleep 1.0 if num_eofs >= files.size
+          #sleep 1.0 if num_eofs >= files.size
         end
         
         @restart = false
-        files.each do |file|
+        files.each do |filename, file|
           file.close
         end
       end
