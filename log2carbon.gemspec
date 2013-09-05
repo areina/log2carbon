@@ -1,10 +1,11 @@
 # encoding: UTF-8
 lib = File.expand_path('../lib/', __FILE__)
 $:.unshift lib unless $:.include?(lib)
- 
+require 'log2carbon/version'
+
 Gem::Specification.new do |s|
   s.name        = 'log2carbon'
-  s.version     = '0.2.0'
+  s.version     = Log2Carbon::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Josep M. Pujol"]
   s.email       = 'josep@3scale.net'
