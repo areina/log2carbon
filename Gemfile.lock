@@ -7,26 +7,18 @@ PATH
 GEM
   remote: http://rubygems.org/
   specs:
-    archive-tar-minitar (0.5.2)
     columnize (0.3.6)
     daemons (1.1.9)
-    linecache19 (0.5.12)
-      ruby_core_source (>= 0.1.4)
-    ruby-debug-base19 (0.11.25)
+    debugger (1.6.1)
       columnize (>= 0.3.1)
-      linecache19 (>= 0.5.11)
-      ruby_core_source (>= 0.1.4)
-    ruby-debug19 (0.11.6)
-      columnize (>= 0.3.1)
-      linecache19 (>= 0.5.11)
-      ruby-debug-base19 (>= 0.11.19)
-    ruby_core_source (0.1.5)
-      archive-tar-minitar (>= 0.5.2)
+      debugger-linecache (~> 1.2.0)
+      debugger-ruby_core_source (~> 1.2.3)
+    debugger-linecache (1.2.0)
+    debugger-ruby_core_source (1.2.3)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  daemons (= 1.1.9)
+  debugger
   log2carbon!
-  ruby-debug19
