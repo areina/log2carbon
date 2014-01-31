@@ -2,17 +2,19 @@
 
 require 'log2carbon'
 
-Daemons.run_proc("log2carbon", :multiple => true,
-                               :dir_mode => :system,
-                               :log_output => true) do
-                               
-  ## get the configuration first, most of the config applies to the daemon
-  conf_file = nil
-  app_index = ARGV.find_index("--")
-  config_filename = ARGV[app_index+1] if app_index
-  config = Log2Carbon::Configuration.load(config_filename || "/etc/log2carbon/log2carbon.conf")
-  
-  exit if config.nil?
-  ## run the log analyzer 
+## get the configuration first, most of the config applies to the daemon
+app_options_index = ARGV.index("--")
+app_options       = Hash[*ARGV[(app_options_index + 1)..-1]]
+config_filename   = app_options["-c"] || "/etc/log2carbon/log2carbon.conf"
+app_environment   = app_options["-e"] || "production"
+config            = Log2Carbon::Configuration.load(config_filename)
+daemon_options    = {
+  multiple:   true,
+  dir_mode:   :system,
+  log_output: true,
+}
+exit if config.nil?
+
+Daemons.run_proc("log2carbon-#{app_environment}", daemon_options) do
   Log2Carbon::Analyzer.work(config)
 end
