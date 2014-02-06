@@ -122,7 +122,7 @@ module Log2Carbon
       end
 
       Analyzer.logger.info("Flushing to carbon bucket #{time_bucket} with #{entries.size} entries. Time buckets pending #{@metrics.size}. #{Tailer.lines_processed} total lines processed")
-#      Analyzer.connection.send(data) if entries.size>0
+      Analyzer.connection.send(data) if entries.size>0
     end
 
     def last_timestamp_of_log_files
