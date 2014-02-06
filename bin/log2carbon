@@ -4,7 +4,7 @@ require 'log2carbon'
 
 ## get the configuration first, most of the config applies to the daemon
 app_options_index = ARGV.index("--")
-app_options       = Hash[*ARGV[(app_options_index + 1)..-1]]
+app_options       = app_options_index ? Hash[*ARGV[(app_options_index + 1)..-1]] : {}
 config_filename   = app_options["-c"] || "/etc/log2carbon/log2carbon.conf"
 app_environment   = app_options["-e"] || "production"
 config            = Log2Carbon::Configuration.load(config_filename)
